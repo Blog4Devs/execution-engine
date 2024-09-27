@@ -1,0 +1,27 @@
+# Use the official Docker-in-Docker image as the base
+FROM docker:24-dind
+
+# Install Node.js 18 and other necessary packages
+RUN apk add --no-cache \
+    nodejs \
+    npm \
+    sudo \
+    shadow
+
+# Set the working directory
+WORKDIR /usr/src/app
+
+# Copy package.json and package-lock.json
+COPY package*.json ./
+
+# Install only production dependencies
+RUN npm install --production
+
+# Copy the rest of your application code
+COPY . .
+
+# Expose the application port
+EXPOSE 3000
+
+# Start the Docker daemon and your Node.js application
+CMD ["sh", "-c", "dockerd-entrypoint.sh & node docker.js"]
