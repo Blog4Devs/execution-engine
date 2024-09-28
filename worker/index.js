@@ -1,68 +1,105 @@
 const express = require('express');
 const path = require('path');
-const { execShellCommand, createUser, deleteUser, cg } = require('./utils');
-const fs = require('fs');
+const { execShellCommand, createUser, deleteUser, killProcessGroup } = require('./utils');
 const app = express();
 
 app.use(express.json());
 
 app.post('/api/execute', async (req, res) => {
   const { code, language } = req.body;
-  
-  const execId = `exec_${Date.now()}`;
-  
-  try {
-    await createUser(execId);
+  const execId = `exec_${Date.now()}`;  // Unique user ID
 
+  let pgid;  // Process group ID to track
+
+  try {
+    // Step 1: Create a new user
+    await createUser(execId);
     const userHomeDir = `/home/${execId}`;
     const tempDir = path.join(userHomeDir, 'temp', execId);
 
+    // Create the temporary directory for this execution
     await execShellCommand(`sudo -u ${execId} mkdir -p ${tempDir}`);
 
-    await execShellCommand(`/usr/src/app/bash.sh && ls`);
+    // Prepare the shell script content
+    let scriptContent = `
+      #!/bin/sh
+    `;
 
-    let output = '';
-console.log("after bash")
+    // Add language-specific execution logic
     switch (language) {
       case 'java': {
         const className = 'Main';
         const javaFilePath = path.join(tempDir, `${className}.java`);
+
+        // Java commands: Write code, compile, and run
         await execShellCommand(`echo '${code}' | sudo -u ${execId} tee ${javaFilePath}`);
 
-        await execShellCommand(`sudo -u ${execId} javac ${className}.java`, { cwd: tempDir });
-
-        output = await execShellCommand(`sudo -u ${execId} java ${className}`, { cwd: tempDir });
+        scriptContent += `
+          javac ${javaFilePath}
+          java -cp ${tempDir} ${className}
+        `;
         break;
       }
 
       case 'cpp': {
         const cppFilePath = path.join(tempDir, 'program.cpp');
         const executableFile = path.join(tempDir, 'program');
+
+        // C++ commands: Write code, compile, and run
         await execShellCommand(`echo '${code}' | sudo -u ${execId} tee ${cppFilePath}`);
 
-        await execShellCommand(`sudo -u ${execId} g++ -o ${executableFile} program.cpp`, { cwd: tempDir });
-
-        output = await execShellCommand(`sudo -u ${execId} ./program`, { cwd: tempDir });
+        scriptContent += `
+          g++ -o ${executableFile} ${cppFilePath}
+          ${executableFile}
+        `;
         break;
       }
 
       case 'javascript': {
         const jsFilePath = path.join(tempDir, 'script.js');
-        await execShellCommand(`echo '${code}' | sudo -u ${execId} tee ${jsFilePath}`);
 
-        output = await execShellCommand(`sudo -u ${execId} node script.js`, { cwd: tempDir });
+        // JavaScript commands: Write code and run
+        await execShellCommand(`echo '${code}' | sudo -u ${execId} tee ${jsFilePath}`);
+        scriptContent += `
+          node ${jsFilePath}
+        `;
         break;
       }
 
       default:
         throw new Error('Unsupported language');
     }
+
+    // Write the script to a file
+    const scriptPath = path.join(tempDir, 'execute.sh');
+    await execShellCommand(`echo '${scriptContent}' | sudo -u ${execId} tee ${scriptPath}`);
+    await execShellCommand(`sudo -u ${execId} chmod +x ${scriptPath}`);
+
+    // Step 2: Execute the script in a new process group and get its PGID
+    const pgidCommand = `sudo -u ${execId} setsid sh -c 'echo $$ > ${tempDir}/pgid && sudo -u ${execId} sh ${scriptPath}'`;
+    
+    const output = await execShellCommand(pgidCommand);
+
+    // Step 3: Retrieve the process group ID (PGID)
+    pgid = await execShellCommand(`cat ${tempDir}/pgid`);
+    console.log("pgid ",pgid)
+    // Step 4: Capture the output of the script
+    //const output = await execShellCommand(`sudo -u ${execId} sh ${scriptPath}`);
+
+    // Return the output to the client
     res.json({ output });
 
   } catch (error) {
-    console.log(error)
-    res.status(500).json({ error: error });
+    console.error(error);
+
+    // If error occurs, terminate the process group
+    if (pgid) {
+      await killProcessGroup(pgid);
+    }
+
+    res.status(500).json({ error: error.message });
   } finally {
+    // Cleanup - Delete the user and its files
     try {
       await deleteUser(execId);
     } catch (cleanupError) {
@@ -72,3 +109,8 @@ console.log("after bash")
 });
 
 app.listen(3000, () => console.log('Server running on port 3000'));
+
+
+
+
+

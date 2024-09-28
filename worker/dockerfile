@@ -30,5 +30,5 @@ USER username
 
 EXPOSE 3000
 
-CMD ["node", "test2.js"]
+CMD ["node", "index.js"]
 #echo "password" | sudo -S cat /etc/shadow
