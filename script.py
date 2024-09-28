@@ -20,7 +20,7 @@ def send_request():
         print(f'An error occurred: {e}')
 
 def main():
-    number_of_requests = 10
+    number_of_requests = 100
 
     # Use ThreadPoolExecutor to send requests in parallel
     with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:

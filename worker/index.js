@@ -2,12 +2,13 @@ const express = require('express');
 const path = require('path');
 const { execShellCommand, createUser, deleteUser, killProcessGroup } = require('./utils');
 const app = express();
+const { v4: uuidv4 } = require('uuid');
 
 app.use(express.json());
 
 app.post('/api/execute', async (req, res) => {
   const { code, language } = req.body;
-  const execId = `exec_${Date.now()}`;  // Unique user ID
+  const execId = `exec_${uuidv4()}`;  // Unique user ID using UUID, we must not use Date to generate an id because users created in the same time ( in parallel ) may have the same id
 
   let pgid;  // Process group ID to track
 
