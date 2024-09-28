@@ -1,62 +1,74 @@
 const { exec } = require('child_process');
-const fs = require('fs');
-const path = require('path');
+
+class Semaphore {
+  constructor(max) {
+    this.max = max;
+    this.count = 0;
+    this.queue = [];
+  }
+
+  async acquire() {
+    if (this.count < this.max) {
+      this.count++;
+      return Promise.resolve();
+    }
+
+    return new Promise(resolve => this.queue.push(resolve));
+  }
+
+  release() {
+    this.count--;
+    if (this.queue.length > 0) {
+      this.count++;
+      const next = this.queue.shift();
+      next();
+    }
+  }
+}
+
+const userCreationSemaphore = new Semaphore(1);
 
 const execShellCommand = (cmd, options = {}) => {
-  let error ;
   return new Promise((resolve, reject) => {
-     exec(cmd, { ...options, timeout: 10000 }, (error, stdout, stderr) => {
+    exec(cmd, { ...options, timeout: 10000 }, (error, stdout, stderr) => {
       if (error || stderr) {
-        error =error || stderr
-        console.log("error ",error)
-        console.log("stderr: ", stderr)
-        //child.kill('SIGTERM');
+        console.log("error ", error);
+        console.log("stderr: ", stderr);
         reject(stderr || error.message);
       } else {
-        console.log("stdout")
+        console.log("stdout");
         resolve(stdout);
       }
     });
-    
   });
 };
 
-async function cg() {
-  const cgroups = '/sys/fs/cgroup/';
-  const enginePath = path.join(cgroups, 'engine');
-
-  try {
-    fs.mkdirSync(enginePath, { mode: 0o755 });
-  } catch (err) {
-    if (err.code !== 'EEXIST') {
-      throw err;
-    }
-  }
-
-  // Helper function for writing files
-  function must(err) {
-    if (err) {
-      throw err;
-    }
-  }
-
-  /* await execShellCommand("sudo touch /sys/fs/cgroup/engine/pids.max")
-  await execShellCommand("sudo chmod 666 /sys/fs/cgroup/engine/pids.max") */
-  must(fs.writeFileSync(path.join(enginePath, 'pids.max'), '10', { mode: 0o700 }));
-
-}
-
 const createUser = async (username, cpuLimit = '10000', memoryLimit = '500M') => {
-  // Create the user
-  const createUserCommand = `sudo useradd -m ${username} && echo '${username}:p' | sudo chpasswd`;
-  await execShellCommand(createUserCommand);
-  //fs.writeFileSync(path.join(enginePath, 'cgroup.procs'), username, { mode: 0o700 })
+  await userCreationSemaphore.acquire();
+  try {
+    const createUserCommand = `sudo useradd -m ${username} && echo '${username}:p' | sudo chpasswd`;
+    await execShellCommand(createUserCommand);
+    console.log(`User ${username} created successfully.`);
+  } catch (error) {
+    console.error(`Error creating user ${username}:`, error.message);
+    throw error;
+  } finally {
+    userCreationSemaphore.release();
+  }
 };
 
 const deleteUser = async (username) => {
-  const deleteUserCommand = `sudo userdel -r ${username}`;
-  await execShellCommand(deleteUserCommand);
-
+  await userCreationSemaphore.acquire();
+  try {
+    const deleteUserCommand = `sudo userdel -r ${username}`;
+    await execShellCommand(deleteUserCommand);
+    console.log(`User ${username} deleted successfully.`);
+  } catch (error) {
+    console.error(`Error deleting user ${username}:`, error.message);
+    throw error;
+  } finally {
+    userCreationSemaphore.release();
+  }
 };
 
 const killProcessGroup = async (pgid) => {
