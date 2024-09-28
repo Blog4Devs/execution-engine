@@ -66,6 +66,17 @@ app.post('/api/execute', async (req, res) => {
         break;
       }
 
+      case 'python3': {
+        const pyFilePath = path.join(tempDir, 'script.py');
+    
+        // Python commands: Write code and run
+        await execShellCommand(`echo '${code}' | sudo -u ${execId} tee ${pyFilePath}`);
+        scriptContent += `
+          python3 ${pyFilePath}
+        `;
+        break;
+      }
+
       default:
         throw new Error('Unsupported language');
     }
