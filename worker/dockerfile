@@ -19,7 +19,6 @@ COPY . .
 
 # Create a new user and set the password
 RUN useradd -m username && echo 'username:password' | chpasswd
-RUN chmod +x /usr/src/app/bash.sh
 # Grant the new user sudo privileges
 RUN adduser username wheel && echo '%wheel ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
 #RUN adduser username wheel && echo '%wheel ALL=(ALL) PASSWD: ALL' >> /etc/sudoers
