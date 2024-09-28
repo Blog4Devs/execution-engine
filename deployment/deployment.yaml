@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: code-execution-container
-          image: vinesen1/execution_engine
+          image: vinesen1/execution
           ports:
             - containerPort: 3000
           resources:
@@ -55,7 +55,7 @@ spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: code-execution+
+    name: code-execution
   minReplicas: 2
   maxReplicas: 10
   targetCPUUtilizationPercentage: 50
