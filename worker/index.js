@@ -27,23 +27,39 @@ const runDockerContainer = async (language, code) => {
   switch (language) {
     case 'python':
       imageName = 'python:3.9';
-      command = `python3 -c "${code.replace(/"/g, '\\"')}"`;
+      //command = `python3 -c "${code.replace(/"/g, '\\"')}"`;;
+
+      command = `bash -c "echo '${Buffer.from(code).toString('base64')}' | base64 -d > program.py && python3 program.py"`;
+
       break;
     case 'cpp':
     imageName = 'gcc:latest';
     // Use echo -e to handle newlines, escape single quotes, and compile the program
-    command = `bash -c "echo -e '${code.replace(/'/g, "'\\''")}' > program.cpp && g++ -o program program.cpp && ./program"`;
+    //command = `bash -c "echo -e '${code.replace(/'/g, "'\\''")}' > program.cpp && g++ -o program program.cpp && ./program"`;
+
+    // Construct the command using base64 encoding
+    command = `bash -c "echo '${Buffer.from(code).toString('base64')}' | base64 -d > program.cpp && g++ -o program program.cpp && ./program"`;
+
     break;
 
     case 'java':
     imageName = 'openjdk:17';
     // Use echo -e to handle newlines and escape single quotes for the Java code
-    command = `bash -c "echo -e '${code.replace(/'/g, "'\\''")}' > Main.java && javac Main.java && java Main"`;
+    //command = `bash -c "echo -e '${code.replace(/'/g, "'\\''")}' > Main.java && javac Main.java && java Main"`;
+    command = `bash -c "echo '${Buffer.from(code).toString('base64')}' | base64 -d > Main.java && javac Main.java && java Main"`;
+
+    
     break;
     
     case 'javascript':
       imageName = 'node:18';
-      command = `node -e "${code.replace(/"/g, '\\"')}"`;
+      //command = `node -e "${code.replace(/"/g, '\\"')}"`;
+      // Encode the Node.js code to base64
+      const base64Code = Buffer.from(code).toString('base64');
+
+      // Construct the command to create a .js file, decode the base64, and run it
+      command = `bash -c "echo '${base64Code}' | base64 -d > program.js && node program.js"`;
+
       break;
     default:
       throw new Error('Unsupported language');
