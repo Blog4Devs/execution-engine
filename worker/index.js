@@ -116,21 +116,8 @@ app.post("/api/execute", async (req, res) => {
     // Return the output to the client
     res.json({ output });
   } catch (error) {
-    console.error(error);
-
-    // If error occurs, terminate the process group
-    if (pgid) {
-      await killProcessGroup(pgid);
-    }
-
-    res.status(500).json({ error: error.message });
-  } finally {
-    // Cleanup - Delete the user and its files
-    try {
-      await deleteUser(execId);
-    } catch (cleanupError) {
-      console.error(`Cleanup error: ${cleanupError.message}`);
-    }
+    
+    res.status(500).json({ error: error });
   }
 });
 
