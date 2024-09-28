@@ -1,0 +1,61 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: code
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: code-execution
+  namespace: code
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: code-execution
+  template:
+    metadata:
+      labels:
+        app: code-execution
+    spec:
+      containers:
+        - name: code-execution-container
+          image: vinesen1/execution_engine
+          ports:
+            - containerPort: 3000
+          resources:
+            requests:
+              cpu: "512m"
+              memory: "256Mi"
+            limits:
+              cpu: "512m"
+              memory: "512Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: code
+  name: code-execution-service
+spec:
+  selector:
+    app: code-execution
+  ports:
+    - protocol: TCP
+      port: 3000
+      targetPort: 3000
+      nodePort: 32000
+  type: NodePort
+---
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: code-execution-hpa
+  namespace: code
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: code-execution+
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 50
