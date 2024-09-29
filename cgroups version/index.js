@@ -5,12 +5,13 @@ const {
   createUser,
   deleteUser,
   killProcessGroup,
+  cg,
 } = require("./utils");
 const app = express();
 const { v4: uuidv4 } = require("uuid");
 
 app.use(express.json());
-
+cg();
 app.post("/api/execute", async (req, res) => {
   const { code, language } = req.body;
   const execId = `exec_${uuidv4()}`; // Unique user ID using UUID, we must not use Date to generate an id because users created in the same time ( in parallel ) may have the same id
@@ -25,10 +26,11 @@ app.post("/api/execute", async (req, res) => {
 
     // Create the temporary directory for this execution
     await execShellCommand(`sudo -u ${execId} mkdir -p ${tempDir}`);
-
+    const cgroupTasksFile = `/sys/fs/cgroup/pids/engine/cgroup.procs`;
     // Prepare the shell script content
     let scriptContent = `
       #!/bin/sh
+      echo $$ >> ${cgroupTasksFile}
     `;
 
     // Add language-specific execution logic
