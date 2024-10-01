@@ -1,0 +1,33 @@
+
+# Use the official Node.js 18 image
+FROM node:18-alpine
+
+# Install necessary packages including sudo, shadow, Python, Java 17, C++, and C
+RUN apk add --no-cache sudo shadow python3 openjdk17 gcc g++ musl-dev
+
+# Set the working directory
+WORKDIR /usr/src/app
+
+# Copy package.json and package-lock.json
+COPY package*.json ./
+
+# Install only production dependencies
+RUN npm install --production
+
+# Copy the rest of your application code
+COPY . .
+
+# Create a new user and set the password
+RUN useradd -m username && echo 'username:password' | chpasswd
+# Grant the new user sudo privileges
+RUN adduser username wheel && echo '%wheel ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
+#RUN adduser username wheel && echo '%wheel ALL=(ALL) PASSWD: ALL' >> /etc/sudoers
+#RUN echo "Defaults timestamp_timeout=0" 
+
+# Switch to the new user
+USER username
+
+EXPOSE 3000
+
+CMD ["node", "index.js"]
+#echo "password" | sudo -S cat /etc/shadow
