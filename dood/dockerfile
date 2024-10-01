@@ -1,0 +1,36 @@
+# Use the official Docker-in-Docker image
+FROM docker:20.10-dind
+
+# Install Node.js and other dependencies
+RUN apk add --no-cache \
+    nodejs \
+    npm \
+    openjdk17 \
+    gcc \
+    g++ \
+    musl-dev \
+    python3 \
+    tini \
+    && addgroup -S docker \
+    && adduser -S docker -G docker
+
+# Set the working directory
+WORKDIR /usr/src/app
+
+# Copy package.json and package-lock.json
+COPY package*.json ./
+
+# Install only production dependencies
+RUN npm install --production
+
+# Expose the Docker socket for DinD
+VOLUME /var/run/docker.sock
+
+# Copy the rest of your application code
+COPY . .
+
+# Expose the port the app runs on
+EXPOSE 3000
+
+# Start Docker daemon and run the Node.js application with Tini
+CMD ["tini", "--", "sh", "-c", "dockerd-entrypoint.sh & node index.js"]
