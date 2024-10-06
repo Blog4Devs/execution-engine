@@ -1,15 +1,16 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: execution
+  name: execution4 # Namespace name
+
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: code-execution
-  namespace: execution
+  namespace: execution4
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: code-execution
@@ -20,9 +21,10 @@ spec:
     spec:
       containers:
         - name: code-execution-container
-          image: vinesen1/execution
+          image: vinesen1/dindcont:1.0.0
           ports:
-            - containerPort: 3000
+            - containerPort: 3000 # Application port
+            - containerPort: 2375 # Docker API port
           resources:
             requests:
               cpu: "512m"
@@ -31,41 +33,31 @@ spec:
               cpu: "512m"
               memory: "512Mi"
           securityContext:
-            privileged: true
-          volumeMounts:
-            - name: docker-sock
-              mountPath: /var/run/docker.sock
-      volumes:
-        - name: docker-sock
-          hostPath:
-            path: /var/run/docker.sock
-            type: Socket
+            privileged: true # Required for Docker-in-Docker
+          env:
+            - name: DOCKER_HOST
+              value: tcp://localhost:2375
+          command:
+            - sh
+            - -c
+            - dockerd --host=tcp://0.0.0.0:2375 --tls=false & sleep 5 && node index.js
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  namespace: execution
+  namespace: execution4
   name: code-execution-service
 spec:
   selector:
     app: code-execution
   ports:
-    - protocol: TCP
+    - name: http
+      protocol: TCP
       port: 3000
       targetPort: 3000
       nodePort: 32000
+    - name: docker-api
+      protocol: TCP
+      port: 2375
+      targetPort: 2375
   type: NodePort
----
-apiVersion: autoscaling/v1
-kind: HorizontalPodAutoscaler
-metadata:
-  name: code-execution-hpa
-  namespace: execution
-spec:
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
-    name: code-execution
-  minReplicas: 2
-  maxReplicas: 10
-  targetCPUUtilizationPercentage: 50

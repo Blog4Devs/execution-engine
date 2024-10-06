@@ -1,10 +1,10 @@
-version: '3.8'
+version: "3.8"
 
 services:
   node-app:
     build:
       context: .
-      dockerfile: Dockerfile  # Ensure this matches the Dockerfile name
+      dockerfile: Dockerfile # Ensure this matches the Dockerfile name
     ports:
-      - "3000:3000"  # Expose port for the Node.js application
-    privileged: true  # Required for Docker-in-Docker
+      - "3000:3000" # Expose port for the Node.js application
+    privileged: true # Required for Docker-in-Docker
