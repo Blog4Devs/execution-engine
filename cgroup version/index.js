@@ -1,5 +1,6 @@
 const express = require("express");
 const path = require("path");
+const cors = require("cors");
 const {
   execShellCommand,
   createUser,
@@ -9,7 +10,25 @@ const {
 } = require("./utils");
 const app = express();
 const { v4: uuidv4 } = require("uuid");
+const allowedOrigins = [
+  "http://localhost:8080",
+  "http://localhost:30001",
+  "http://localhost:5173",
+];
 
+// Enable CORS with dynamic origin
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // If no origin or the origin is in the allowed list, allow it
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+  })
+);
 app.use(express.json());
 cg();
 app.post("/api/execute", async (req, res) => {

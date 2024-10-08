@@ -1,0 +1,36 @@
+---
+# Frontend deployment and service
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: execution4
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+        - name: frontend-container
+          image: vinesen1/frontend # Use your custom frontend image
+          ports:
+            - containerPort: 80 # The port that your frontend is served on
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-service
+  namespace: execution4
+spec:
+  selector:
+    app: frontend
+  ports:
+    - port: 80
+      targetPort: 80
+      nodePort: 30001 # Access your frontend on this port
+  type: NodePort

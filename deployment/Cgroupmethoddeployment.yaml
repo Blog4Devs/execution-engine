@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: code-execution-container
-          image: vinesen1/cgroupcont:1.0.0
+          image: vinesen1/cgroupcont:2.0.0
           ports:
             - containerPort: 3000 # Expose app port
             - containerPort: 2375 # Expose Docker API port
