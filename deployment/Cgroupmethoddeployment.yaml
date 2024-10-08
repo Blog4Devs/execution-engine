@@ -1,0 +1,76 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: execution4 # Corrected namespace name
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: code-execution
+  namespace: execution4 # Use the correct namespace
+spec:
+  replicas: 1 # Set replicas to 1 for a single pod
+  selector:
+    matchLabels:
+      app: code-execution
+  template:
+    metadata:
+      labels:
+        app: code-execution
+    spec:
+      containers:
+        - name: code-execution-container
+          image: vinesen1/cgroupcont:2.0.0
+          ports:
+            - containerPort: 3000 # Expose app port
+            - containerPort: 2375 # Expose Docker API port
+          resources:
+            requests:
+              cpu: "512m"
+              memory: "256Mi"
+            limits:
+              cpu: "512m"
+              memory: "512Mi"
+          securityContext:
+            privileged: true # Keep privileged mode for Docker-in-Docker
+          env:
+            - name: DOCKER_HOST
+              value: tcp://localhost:2375 # Set environment variable for Docker daemon
+          command:
+            - sh
+            - -c
+            - dockerd --host=tcp://0.0.0.0:2375 --tls=false & sleep 5 && node index.js # Start Docker daemon and Node.js app
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: execution4 # Use the correct namespace
+  name: code-execution-service
+spec:
+  selector:
+    app: code-execution
+  ports:
+    - name: http # Name for the application port
+      protocol: TCP
+      port: 3000
+      targetPort: 3000
+      nodePort: 32000
+    - name: docker-api # Name for the Docker API port
+      protocol: TCP
+      port: 2375 # Expose Docker API service port
+      targetPort: 2375
+  type: NodePort
+---
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: code-execution-hpa
+  namespace: execution4 # Use the correct namespace
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: code-execution
+  minReplicas: 1 # Set minimum replicas to 1
+  maxReplicas: 5 # Maximum number of pods to scale to
+  targetCPUUtilizationPercentage: 50 # Target CPU utilization for scaling

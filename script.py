@@ -3,7 +3,7 @@ import concurrent.futures
 import requests
 
 # Change this to your target URL
-TARGET_URL = 'http://localhost:3000/api/execute'
+TARGET_URL = 'http://localhost:32000/api/execute'
 
 # Define the JSON payload you want to send in the POST request
 payload = {
@@ -20,7 +20,7 @@ def send_request():
         print(f'An error occurred: {e}')
 
 def main():
-    number_of_requests = 100
+    number_of_requests = 200
 
     # Use ThreadPoolExecutor to send requests in parallel
     with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
