@@ -30,11 +30,10 @@ app.use(
   })
 );
 app.use(express.json());
-cg();
 app.post("/api/execute", async (req, res) => {
   const { code, language } = req.body;
   const execId = `exec_${uuidv4()}`; // Unique user ID using UUID, we must not use Date to generate an id because users created in the same time ( in parallel ) may have the same id
-
+  await cg(execId);
   let pgid; // Process group ID to track
 
   try {
@@ -45,7 +44,7 @@ app.post("/api/execute", async (req, res) => {
 
     // Create the temporary directory for this execution
     await execShellCommand(`sudo -u ${execId} mkdir -p ${tempDir}`);
-    const cgroupTasksFile = `/sys/fs/cgroup/pids/engine/cgroup.procs`;
+    const cgroupTasksFile = `/sys/fs/cgroup/pids/engine_${execId}/cgroup.procs`;
     // Prepare the shell script content
     let scriptContent = `
       #!/bin/sh
@@ -124,7 +123,7 @@ app.post("/api/execute", async (req, res) => {
     await execShellCommand(`sudo -u ${execId} chmod +x ${scriptPath}`);
 
     // Step 2: Execute the script in a new process group and get its PGID
-    const pgidCommand = `sudo setsid sh -c 'echo $$ > ${tempDir}/pgid && sudo -u ${execId} sh ${scriptPath}'`;
+    const pgidCommand = `sudo setsid sh -c 'echo $$ > ${tempDir}/pgid && sudo -u ${execId} sh ${scriptPath} &'`;
 
     const output = await execShellCommand(pgidCommand);
 
@@ -143,7 +142,6 @@ app.post("/api/execute", async (req, res) => {
     if (pgid) {
       await killProcessGroup(pgid);
     }
-
     res.status(500).json({ error: error.message });
   } finally {
     // Cleanup - Delete the user and its files

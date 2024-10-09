@@ -31,7 +31,7 @@ const userCreationSemaphore = new Semaphore(1);
 
 const execShellCommand = (cmd, options = {}) => {
   return new Promise((resolve, reject) => {
-    exec(cmd, { ...options, timeout: 10000 }, (error, stdout, stderr) => {
+    exec(cmd, { ...options }, (error, stdout, stderr) => {
       if (error || stderr) {
         console.log("error ", error);
         console.log("stderr: ", stderr);
@@ -70,9 +70,9 @@ const execShellCommand = (cmd, options = {}) => {
 // }
 
 // Main function to create and configure cgroups
-async function cg() {
+async function cg(username) {
   const cgroups = "/sys/fs/cgroup/pids";
-  const enginePath = path.join(cgroups, "engine");
+  const enginePath = path.join(cgroups, `engine_${username}`);
 
   try {
     // Create the directory for cgroups (with sudo)
@@ -131,7 +131,13 @@ const createUser = async (
 
 const deleteUser = async (username) => {
   await userCreationSemaphore.acquire();
+  const cgroups = "/sys/fs/cgroup/pids";
+  const enginePath = path.join(cgroups, `engine_${username}`);
   try {
+    const deleteCgroupCommand = `sudo rmdir ${enginePath}`;
+    await execShellCommand(deleteCgroupCommand);
+    console.log(`Cgroup created for the user ${username} deleted successfully.`);
+    
     const deleteUserCommand = `sudo userdel -r ${username}`;
     await execShellCommand(deleteUserCommand);
     console.log(`User ${username} deleted successfully.`);
@@ -142,6 +148,7 @@ const deleteUser = async (username) => {
     userCreationSemaphore.release();
   }
 };
+
 
 const killProcessGroup = async (pgid) => {
   const killCommand = `sudo kill -TERM -${pgid}`; // Send SIGTERM to process group
