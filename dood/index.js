@@ -1,23 +1,9 @@
 const express = require('express');
 const { exec } = require('child_process');
+const { execShellCommand } = require('./utils');
 const app = express();
 app.use(express.json());
 
-// Function to execute shell commands
-const execShellCommand = async (cmd) => {
-    return new Promise((resolve, reject) => {
-      console.log(`Executing command: ${cmd}`);  // Log the command
-      exec(cmd, { timeout: 100000 }, (error, stdout, stderr) => {
-        if (error || stderr) {
-          console.error("Error: ", stderr || error.message);
-          reject(stderr || error.message);
-        } else {
-          console.log(`Command output: ${stdout}`);  // Log the output
-          resolve(stdout);
-        }
-      });
-    });
-  };
 
 // Function to run code in a Docker container based on the language
 const runDockerContainer = async (language, code) => {
@@ -27,25 +13,17 @@ const runDockerContainer = async (language, code) => {
   switch (language) {
     case 'python':
       imageName = 'python:3.9';
-      //command = `python3 -c "${code.replace(/"/g, '\\"')}"`;;
-
       command = `bash -c "echo '${Buffer.from(code).toString('base64')}' | base64 -d > program.py && python3 program.py"`;
 
       break;
     case 'cpp':
     imageName = 'gcc:latest';
-    // Use echo -e to handle newlines, escape single quotes, and compile the program
-    //command = `bash -c "echo -e '${code.replace(/'/g, "'\\''")}' > program.cpp && g++ -o program program.cpp && ./program"`;
-
-    // Construct the command using base64 encoding
     command = `bash -c "echo '${Buffer.from(code).toString('base64')}' | base64 -d > program.cpp && g++ -o program program.cpp && ./program"`;
 
     break;
 
     case 'java':
     imageName = 'openjdk:17';
-    // Use echo -e to handle newlines and escape single quotes for the Java code
-    //command = `bash -c "echo -e '${code.replace(/'/g, "'\\''")}' > Main.java && javac Main.java && java Main"`;
     command = `bash -c "echo '${Buffer.from(code).toString('base64')}' | base64 -d > Main.java && javac Main.java && java Main"`;
 
     
@@ -53,7 +31,6 @@ const runDockerContainer = async (language, code) => {
     
     case 'javascript':
       imageName = 'node:18';
-      //command = `node -e "${code.replace(/"/g, '\\"')}"`;
       // Encode the Node.js code to base64
       const base64Code = Buffer.from(code).toString('base64');
 
@@ -66,8 +43,7 @@ const runDockerContainer = async (language, code) => {
   }
 
   // Use Docker to run the command
-  const containerCommand = `docker run --rm ${imageName} sh -c '${command}'`;
-  //const containerCommand = `docker -H unix:///var/run/docker.sock run --rm ${imageName} sh -c '${command}'`;
+  const containerCommand = `docker run --rm --cpus=1 --pids-limit=100 ${imageName} sh -c 'timeout 10s ${command}'`;
 
   return await execShellCommand(containerCommand);
 };

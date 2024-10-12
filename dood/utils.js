@@ -28,15 +28,15 @@ class Semaphore {
 
 const userCreationSemaphore = new Semaphore(1);
 
-const execShellCommand = (cmd, options = {}) => {
+const execShellCommand = async (cmd) => {
   return new Promise((resolve, reject) => {
-    exec(cmd, { ...options, timeout: 10000 }, (error, stdout, stderr) => {
+    console.log(`Executing command: ${cmd}`);  // Log the command
+    exec(cmd, { timeout: 100000 }, (error, stdout, stderr) => {
       if (error || stderr) {
-        console.log("error ", error);
-        console.log("stderr: ", stderr);
+        console.error("Error: ", stderr || error.message);
         reject(stderr || error.message);
       } else {
-        console.log("stdout");
+        console.log(`Command output: ${stdout}`);  // Log the output
         resolve(stdout);
       }
     });
