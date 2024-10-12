@@ -49,6 +49,7 @@ app.post("/api/execute", async (req, res) => {
     let scriptContent = `
       #!/bin/sh
       echo $$ >> ${cgroupTasksFile}
+      ulimit -t 10
     `;
 
     // Add language-specific execution logic

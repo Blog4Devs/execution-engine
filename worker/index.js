@@ -29,6 +29,8 @@ app.post("/api/execute", async (req, res) => {
     // Prepare the shell script content
     let scriptContent = `
       #!/bin/sh
+      ulimit -t 10
+      ulimit -u 40
     `;
 
     // Add language-specific execution logic
